@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Text Enhancer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .copy-btn {
+            transition: all 0.2s;
+        }
+        .copy-btn.copied {
+            background-color: #10B981 !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-gray-800">AI Text Enhancer</h1>
+            <p class="text-gray-600">Real-time spelling and grammar corrections</p>
+        </header>
+
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="mb-4">
+                <label for="inputText" class="block text-gray-700 font-medium mb-2">Your Text:</label>
+                <textarea id="inputText" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="8" placeholder="Type or paste your text here..."></textarea>
+                <div class="flex justify-between items-center mt-2">
+                    <span id="charCount" class="text-sm text-gray-500">0 characters</span>
+                    <button id="darkModeToggle" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex space-x-4 mb-6">
+                <button id="correctBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition">
+                    <i class="fas fa-spell-check mr-2"></i> Correct Text
+                </button>
+            </div>
+
+            <div id="outputContainer" class="hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-lg font-medium text-gray-700">Corrected Text:</h3>
+                    <button id="copyBtn" class="copy-btn bg-gray-200 hover:bg-gray-300 text-gray-800 py-1 px-3 rounded text-sm">
+                        <i class="fas fa-copy mr-1"></i> Copy
+                    </button>
+                </div>
+                <div id="correctedText" class="p-4 bg-gray-50 rounded-lg border border-gray-200 whitespace-pre-wrap"></div>
+            </div>
+
+            <div id="alertContainer" class="mt-4"></div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const inputText = document.getElementById('inputText');
+        const correctBtn = document.getElementById('correctBtn');
+        const correctedText = document.getElementById('correctedText');
+        const outputContainer = document.getElementById('outputContainer');
+        const copyBtn = document.getElementById('copyBtn');
+        const charCount = document.getElementById('charCount');
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const alertContainer = document.getElementById('alertContainer');
+
+        // Character count
+        inputText.addEventListener('input', () => {
+            charCount.textContent = `${inputText.value.length} characters`;
+        });
+
+        // Dark mode toggle
+        darkModeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('bg-gray-900');
+            document.body.classList.toggle('text-white');
+            darkModeToggle.innerHTML = document.body.classList.contains('bg-gray-900') 
+                ? '<i class="fas fa-sun"></i>' 
+                : '<i class="fas fa-moon"></i>';
+        });
+
+        // Copy functionality
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(correctedText.textContent)
+                .then(() => {
+                    copyBtn.classList.add('copied');
+                    copyBtn.innerHTML = '<i class="fas fa-check mr-1"></i> Copied!';
+                    setTimeout(() => {
+                        copyBtn.classList.remove('copied');
+                        copyBtn.innerHTML = '<i class="fas fa-copy mr-1"></i> Copy';
+                    }, 2000);
+                });
+        });
+
+        // Text correction
+        correctBtn.addEventListener('click', async () => {
+            const text = inputText.value.trim();
+            if (!text) {
+                showAlert('Please enter some text to correct', 'error');
+                return;
+            }
+
+            correctBtn.disabled = true;
+            correctBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
+
+            try {
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text, mode: 'correct' })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    correctedText.textContent = data.result;
+                    outputContainer.classList.remove('hidden');
+                    showAlert('Text corrected successfully!', 'success');
+                } else {
+                    showAlert(data.error || 'Failed to process text', 'error');
+                }
+            } catch (error) {
+                showAlert('Network error. Please try again.', 'error');
+            } finally {
+                correctBtn.disabled = false;
+                correctBtn.innerHTML = '<i class="fas fa-spell-check mr-2"></i> Correct Text';
+            }
+        });
+
+        // Show alert message
+        function showAlert(message, type) {
+            const alert = document.createElement('div');
+            alert.className = `p-4 rounded-lg mb-4 ${type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+            alert.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle'} mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
